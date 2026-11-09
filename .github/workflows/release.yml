@@ -1,0 +1,128 @@
+# ============================================================
+#  SAMD Flasher - Automated Build & Release
+#
+#  Every push / pull request: builds Windows, macOS and Linux
+#  packages and attaches them to the workflow run as artifacts.
+#
+#  Tags starting with "v" (e.g. v1.0.0) also publish the three
+#  zips as assets on a GitHub Release:
+#    git tag v1.0.0
+#    git push origin v1.0.0
+# ============================================================
+
+name: Build & Release
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*.*.*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write   # required to create/update releases
+
+jobs:
+  build:
+    name: Build (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+            exe: dist/SAMD_Flasher.exe
+            zip: SAMD_Flasher-windows.zip
+          - os: macos-latest          # Apple Silicon (arm64)
+            platform: macos
+            exe: dist/SAMD_Flasher
+            zip: SAMD_Flasher-macos.zip
+          - os: ubuntu-22.04          # older glibc = runs on more Linux distros
+            platform: linux
+            exe: dist/SAMD_Flasher
+            zip: SAMD_Flasher-linux.zip
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Tk runtime (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -qq && sudo apt-get install -y libtk8.6
+
+      - name: Install PyInstaller
+        run: pip install pyinstaller
+
+      # ── Smoke test the app logic before packaging ─────────
+      - name: Self-test (CLI dry run)
+        shell: bash
+        run: |
+          python -c "import tkinter; print('tkinter', tkinter.TkVersion)"
+          python samd_flasher.py --list-profiles
+          head -c 4096 /dev/zero > ci_bl.bin
+          head -c 8192 /dev/zero > ci_fw.bin
+          python samd_flasher.py --bootloader ci_bl.bin --firmware ci_fw.bin --dry-run
+          rm ci_bl.bin ci_fw.bin
+
+      # ── Bundle OpenOCD (xPack build, SHA-256 verified) ───
+      - name: Download OpenOCD
+        shell: bash
+        run: |
+          python samd_flasher.py --download-openocd
+          OCD=$(find tools/openocd -path '*/bin/openocd*' -type f | head -1)
+          "$OCD" --version
+
+      - name: Build executable
+        run: pyinstaller samd_flasher.spec
+
+      # ── Package ───────────────────────────────────────────
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release | Out-Null
+          Copy-Item ${{ matrix.exe }} release\
+          foreach ($d in 'tools','drivers','bootloader','firmware') { Copy-Item $d release\ -Recurse }
+          foreach ($f in 'profiles.json','README.md','APP.md') { if (Test-Path $f) { Copy-Item $f release\ } }
+          Compress-Archive -Path release\* -DestinationPath ${{ matrix.zip }} -Force
+
+      - name: Package (macOS / Linux)
+        if: runner.os != 'Windows'
+        run: |
+          mkdir -p release
+          cp ${{ matrix.exe }} release/SAMD_Flasher
+          chmod +x release/SAMD_Flasher
+          cp -R tools drivers bootloader firmware release/
+          for f in profiles.json README.md APP.md; do [ -f "$f" ] && cp "$f" release/; done
+          # -y keeps OpenOCD's shared-library symlinks; zip keeps exec bits
+          cd release && zip -qry ../${{ matrix.zip }} . && cd ..
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.zip }}
+          path: ${{ matrix.zip }}
+
+  release:
+    name: Publish Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: '*.zip'
+          generate_release_notes: true
+          fail_on_unmatched_files: true

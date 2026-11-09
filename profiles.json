@@ -1,0 +1,21 @@
+{
+  "_help": [
+    "bootloader_size: bytes protected for the bootloader (BOOTPROT). app_offset: where a .bin firmware is written.",
+    "bootloader: path to the D9.4.1 bootloader file. Leave empty to use the first .bin/.hex/.elf in bootloader/.",
+    "firmware: leave empty to use the first file in firmware/, or download Stable/Development builds in the app.",
+    "release_repo + *_asset (regex): which GitHub release files are the firmware and bootloader for this board."
+  ],
+  "boards": [
+    {
+      "name": "OpenEVSE NXT - D9.4.1 bootloader (ATSAMD21G18A)",
+      "family": "samd21",
+      "bootloader_size": 8192,
+      "app_offset": "0x2000",
+      "bootloader": "",
+      "firmware": "",
+      "release_repo": "OpenEVSE/open_evse",
+      "firmware_asset": "^samd\\.bin$",
+      "bootloader_asset": "^bootloader-OpenEVSE_NXT.*\\.bin$"
+    }
+  ]
+}
