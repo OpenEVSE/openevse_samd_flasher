@@ -1,0 +1,15 @@
+# Atmel-ICE and other Atmel/Microchip CMSIS-DAP debuggers (VID 03eb)
+# Install:  sudo cp 99-atmel-ice.rules /etc/udev/rules.d/
+#           sudo udevadm control --reload-rules && sudo udevadm trigger
+# Then unplug and replug the programmer.
+# 2141 Atmel-ICE, 2111 EDBG, 2140 JTAGICE3, 2145 mEDBG, 2175 nEDBG
+SUBSYSTEM=="usb", ATTR{idVendor}=="03eb", ATTR{idProduct}=="2141", MODE="0666", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTR{idVendor}=="03eb", ATTR{idProduct}=="2111", MODE="0666", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTR{idVendor}=="03eb", ATTR{idProduct}=="2140", MODE="0666", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTR{idVendor}=="03eb", ATTR{idProduct}=="2145", MODE="0666", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTR{idVendor}=="03eb", ATTR{idProduct}=="2175", MODE="0666", TAG+="uaccess"
+KERNEL=="hidraw*", ATTRS{idVendor}=="03eb", ATTRS{idProduct}=="2141", MODE="0666", TAG+="uaccess"
+KERNEL=="hidraw*", ATTRS{idVendor}=="03eb", ATTRS{idProduct}=="2111", MODE="0666", TAG+="uaccess"
+KERNEL=="hidraw*", ATTRS{idVendor}=="03eb", ATTRS{idProduct}=="2140", MODE="0666", TAG+="uaccess"
+KERNEL=="hidraw*", ATTRS{idVendor}=="03eb", ATTRS{idProduct}=="2145", MODE="0666", TAG+="uaccess"
+KERNEL=="hidraw*", ATTRS{idVendor}=="03eb", ATTRS{idProduct}=="2175", MODE="0666", TAG+="uaccess"
